@@ -4,6 +4,8 @@ import os
 import discord
 from dotenv import load_dotenv
 
+from session import Session
+
 class Client(discord.Client):
     def __init__(self, **options):
         super().__init__(**options)
@@ -20,7 +22,7 @@ class Client(discord.Client):
         next_strike_role_name = 'strike {}'.format(current_strike + 1)
         return next((role for role in guild_roles if role.name.lower() == next_strike_role_name), None)
     
-    async def strike(self, user_to_strike, guild_roles, strike_reason):
+    async def strike( self, user_to_strike, guild_roles, strike_reason):
         next_strike_role = self.get_next_strike_role(user_to_strike.roles, guild_roles)
         if (next_strike_role is not None):
             await user_to_strike.add_roles(next_strike_role, reason=strike_reason)
