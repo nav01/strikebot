@@ -3,7 +3,7 @@ from .base import Base
 from sqlalchemy import Table, Column, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 
-class StrikeSupporter(Base):
+class StrikeProponent(Base):
     __tablename__ = 'strike_proponent'
     
     id = Column(Integer, primary_key=True)
@@ -11,4 +11,4 @@ class StrikeSupporter(Base):
     user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     
     strike = relationship('Strike', back_populates='proponents')
-    user = relationship('user')
+    user = relationship('User')
