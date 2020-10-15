@@ -27,15 +27,17 @@ def __get_or_create_server(session, discord_server_id):
         
     return server
         
-def propose_strike(session, guild, discord_proposing_user, discord_targeted_user, reason, message_id, message_jump_url):
+def propose_strike(session, guild, discord_proposing_user, discord_targeted_user, reason, channel_id, message_id, message_jump_url, vote_end_time):
     proposing_user = __get_or_create_user(session, discord_proposing_user.id)
     targeted_user = __get_or_create_user(session, discord_targeted_user.id)
     server = __get_or_create_server(session, guild.id)
     strike = Strike(
         action=Action.add,
         reason=reason,
+        watched_message_channel_id=channel_id,
         watched_message_id=message_id,
         watched_message_jump_url=message_jump_url,
+        voting_ends_at=vote_end_time,
     )
     strike.proposing_user = proposing_user
     strike.targeted_user = targeted_user
@@ -50,6 +52,10 @@ def add_strike_proponent(session, message_id, proponent_discord_id):
     #the message is not a strike message
     if strike is None:
         return None
+        
+    if datetime.now() > strike.voting_ends_at:
+        return None
+    
 
     #Check if user has already reacted and been recorded. Should only happen until a handler
     #for removing reactions is added or the bot is offline during adding/removing reactions
@@ -63,10 +69,15 @@ def add_strike_proponent(session, message_id, proponent_discord_id):
     return strike
     
 def mark_strike_operation_successful(session, message_id, strike_level_modified):
-    strike = session.query(Strike).filter(Strike.watched_message_id == message_id).one()
+    strike = session.query(Strike).\
+        options(selectinload('proposing_user'), selectinload('targeted_user')).\
+        filter(Strike.watched_message_id == message_id).\
+        one()
     strike.strike_level_modified = strike_level_modified
     strike.success = True
     strike.succeeded_at = datetime.now()
+    strike.voting_ends_at = strike.succeeded_at
+    return strike
     
 def create_server(session, discord_server_id):
     __get_or_create_server(session, discord_server_id)

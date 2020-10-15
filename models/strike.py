@@ -25,10 +25,12 @@ class Strike(Base):
     strike_level_modified = Column(SmallInteger, default=None)
     reason = Column(String(500), nullable=False)
     watched_message_id = Column(Integer)
+    watched_message_channel_id = Column(Integer)
     watched_message_jump_url = Column(String(150))
     success = Column(Boolean, default=False, nullable=False)
-    succeeded_at = Column(DateTime)
     proposed_at = Column(DateTime, default=datetime.datetime.now, nullable=False)
+    voting_ends_at = Column(DateTime)
+    succeeded_at = Column(DateTime)
     
     server = relationship('Server')
     proposing_user = relationship('User', foreign_keys='Strike.proposing_user_id', back_populates='strikes_proposed')

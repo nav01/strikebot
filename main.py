@@ -1,5 +1,6 @@
 import re
 import os
+from datetime import datetime, timedelta
 
 import discord
 from discord.ext import tasks
@@ -52,9 +53,16 @@ class Client(discord.Client):
                 target_user = message.guild.get_member(int(command_match.group(2)))
                 session = Session()
                 try:
+                    voting_expiration_date = datetime.now() + timedelta(seconds=30)
                     bot_message = await message.channel.send(
-                        content='{}({}) is proposing a strike against {}({}), react with strike to support'
-                            .format(message.author.display_name, message.author.name, target_user.display_name, target_user.name)
+                        content='{} ({}) is proposing a strike against {} ({}), react with strike to support\nVoting ends at {}'
+                            .format(
+                                message.author.display_name,
+                                message.author.name,
+                                target_user.display_name,
+                                target_user.name,
+                                voting_expiration_date.replace(microsecond=0),
+                            )
                     )
                     operations.propose_strike(
                         session, 
@@ -62,8 +70,10 @@ class Client(discord.Client):
                         message.author, 
                         target_user,
                         command_match.group(3),
+                        bot_message.channel.id,
                         bot_message.id, 
                         bot_message.jump_url,
+                        voting_expiration_date,
                     )
                     session.commit()
                 except Exception as e:
@@ -86,11 +96,24 @@ class Client(discord.Client):
                         guild = self.get_guild(payload.guild_id)
                         target_user = guild.get_member(strike.targeted_user.discord_user_id)
                         strike_level_modified = await self.strike(target_user, guild.roles, strike.reason)
-                        operations.mark_strike_operation_successful(session, payload.message_id, strike_level_modified)
+                        strike = operations.mark_strike_operation_successful(session, payload.message_id, strike_level_modified)
+                        channel = guild.get_channel(payload.channel_id)
+                        discord_proposing_user = guild.get_member(strike.proposing_user.discord_user_id)
+                        discord_target_user = guild.get_member(strike.targeted_user.discord_user_id)
+                        await channel.send('Strike proposed by {} ({}) against {} ({}) was successful. Strike {} applied.'.\
+                            format(
+                                discord_proposing_user.display_name,
+                                discord_proposing_user.name,
+                                discord_target_user.display_name, 
+                                discord_target_user.name,
+                                strike.strike_level_modified
+                            )
+                        )
                     session.commit()
             except Exception as e:
                 print(e)
                 session.rollback()
+                raise
             finally:
                 session.close()
             
