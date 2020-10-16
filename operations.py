@@ -26,6 +26,15 @@ def __get_or_create_server(session, discord_server_id):
         session.add(server)
         
     return server
+
+def user_has_pending_strike(session, discord_user_id):
+    now = datetime.now()
+    strike = session.query(Strike).join(User, Strike.targeted_user).\
+        filter(User.discord_user_id == discord_user_id).\
+        filter(Strike.success == False).\
+        filter(Strike.voting_ends_at > now).\
+        first()
+    return strike
         
 def propose_strike(session, guild, discord_proposing_user, discord_targeted_user, reason, channel_id, message_id, message_jump_url, vote_end_time):
     proposing_user = __get_or_create_user(session, discord_proposing_user.id)
@@ -96,7 +105,7 @@ def get_decayed_strikes(session, decay_time):
         filter(Strike.decayed != True).\
         filter(Strike.action == Action.add).\
         filter(Strike.success == True).\
-        filter(datetime.now() - timedelta(seconds=decay_time) >= Strike.succeeded_at).\
+        filter(datetime.now() - timedelta(minutes=decay_time) >= Strike.succeeded_at).\
         filter(Strike.strike_level_modified == highest_undecayed_strike_per_user.c.max_active_strike_level).\
         filter(Strike.targeted_user_id == highest_undecayed_strike_per_user.c.targeted_user_id).\
         all()

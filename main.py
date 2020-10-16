@@ -51,9 +51,20 @@ class Client(discord.Client):
         if (command_match is not None):
             if (command_match.group(1) == 'strike'):
                 target_user = message.guild.get_member(int(command_match.group(2)))
+      
+                if self.get_next_strike_role(target_user.roles, message.guild.roles) is None:
+                    await message.channel.send('{} ({}) is at the max strike level.'.format(target_user.display_name, target_user.name))
+                    return
+                
                 session = Session()
+                pending_strike = operations.user_has_pending_strike(session, target_user.id)
+                
+                if pending_strike is not None:
+                    await message.channel.send('{} ({}) has pending strike.\n{}'.format(target_user.display_name, target_user.name, pending_strike.watched_message_jump_url))
+                    return
+              
                 try:
-                    voting_expiration_date = datetime.now() + timedelta(seconds=30)
+                    voting_expiration_date = datetime.now() + timedelta(hours=6)
                     bot_message = await message.channel.send(
                         content='{} ({}) is proposing a strike against {} ({}), react with strike to support\nVoting ends at {}'
                             .format(
@@ -84,7 +95,7 @@ class Client(discord.Client):
     
     async def on_raw_reaction_add(self, payload):
         #TODO add this as a customizable user setting
-        PROPONENTS_REQUIRED = 1
+        PROPONENTS_REQUIRED = 2
         
         if payload.emoji.name == 'strike':
             session = Session()
@@ -130,7 +141,7 @@ class Client(discord.Client):
     @tasks.loop(seconds=60)
     async def clear_strikes(self):
         #TODO add this as a customizable user setting
-        TIME_BEFORE_DECAY = 30
+        TIME_BEFORE_DECAY = 1
         session = Session()
         try:
             decayed_strikes = operations.get_decayed_strikes(session, TIME_BEFORE_DECAY)
