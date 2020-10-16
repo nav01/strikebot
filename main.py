@@ -12,7 +12,7 @@ import operations
 class Client(discord.Client):
     def __init__(self, **options):
         super().__init__(**options)
-        self.command_matcher = re.compile('<:([a-zA-Z0-9_]+):[0-9]{18}> <@!([0-9]{17,18})> ([a-zA-Z0-9 ]{4,})')
+        self.command_matcher = re.compile('<:([a-zA-Z0-9_]+):[0-9]{18}> <@!([0-9]{17,18})> (.{4,})')
         self.strike_role_matcher = re.compile('strike ([1-9]{1})', re.IGNORECASE)
         self.clear_strikes.start()
        
@@ -53,25 +53,26 @@ class Client(discord.Client):
                 target_user = message.guild.get_member(int(command_match.group(2)))
       
                 if self.get_next_strike_role(target_user.roles, message.guild.roles) is None:
-                    await message.channel.send('{} ({}) is at the max strike level.'.format(target_user.display_name, target_user.name))
+                    await message.channel.send('**{} ({})** is at the max strike level.'.format(target_user.display_name, target_user.name))
                     return
                 
                 session = Session()
                 pending_strike = operations.user_has_pending_strike(session, target_user.id)
                 
                 if pending_strike is not None:
-                    await message.channel.send('{} ({}) has pending strike.\n{}'.format(target_user.display_name, target_user.name, pending_strike.watched_message_jump_url))
+                    await message.channel.send('**{} ({})** has pending strike.\n{}'.format(target_user.display_name, target_user.name, pending_strike.watched_message_jump_url))
                     return
               
                 try:
                     voting_expiration_date = datetime.now() + timedelta(hours=6)
                     bot_message = await message.channel.send(
-                        content='{} ({}) is proposing a strike against {} ({}), react with strike to support\nVoting ends at {}'
+                        content='```haskell\n{} ({}) is proposing a strike against {} ({}), react with strike to support\nReason: {}\nVoting ends at {}```'
                             .format(
                                 message.author.display_name,
                                 message.author.name,
                                 target_user.display_name,
                                 target_user.name,
+                                command_match.group(3),
                                 voting_expiration_date.replace(microsecond=0),
                             )
                     )
@@ -111,7 +112,7 @@ class Client(discord.Client):
                         channel = guild.get_channel(payload.channel_id)
                         discord_proposing_user = guild.get_member(strike.proposing_user.discord_user_id)
                         discord_target_user = guild.get_member(strike.targeted_user.discord_user_id)
-                        await channel.send('Strike proposed by {} ({}) against {} ({}) was successful. Strike {} applied.'.\
+                        await channel.send('Strike proposed by **{} ({})** against **{} ({})** was successful. Strike {} applied.'.\
                             format(
                                 discord_proposing_user.display_name,
                                 discord_proposing_user.name,
@@ -150,6 +151,14 @@ class Client(discord.Client):
                 user = guild.get_member(strike.targeted_user.discord_user_id)
                 await self.clear_strike(user, strike.strike_level_modified)
                 strike.decay()
+                await guild.get_channel(strike.watched_message_channel_id).send(
+                    'Strike **{}** on {} ({}) has expired.'.format(
+                        strike.strike_level_modified, 
+                        user.display_name, 
+                        user.name
+                    )
+                )
+                
             session.commit()   
         except Exception as e:
             print(e)

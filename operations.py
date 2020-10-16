@@ -105,7 +105,7 @@ def get_decayed_strikes(session, decay_time):
         filter(Strike.decayed != True).\
         filter(Strike.action == Action.add).\
         filter(Strike.success == True).\
-        filter(datetime.now() - timedelta(minutes=decay_time) >= Strike.succeeded_at).\
+        filter(datetime.now() - timedelta(hours=decay_time) >= Strike.succeeded_at).\
         filter(Strike.strike_level_modified == highest_undecayed_strike_per_user.c.max_active_strike_level).\
         filter(Strike.targeted_user_id == highest_undecayed_strike_per_user.c.targeted_user_id).\
         all()
