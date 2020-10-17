@@ -55,7 +55,11 @@ def propose_strike(session, guild, discord_proposing_user, discord_targeted_user
     
 def add_strike_proponent(session, message_id, proponent_discord_id):
     strike = session.query(Strike).\
-        options(selectinload('proponents').selectinload('user')).\
+        options(
+            selectinload('proponents').selectinload('user'),
+            selectinload('targeted_user'),
+            selectinload('proposing_user'),
+        ).\
         filter(Strike.watched_message_id == message_id).one_or_none()
     
     #the message is not a strike message
@@ -76,18 +80,7 @@ def add_strike_proponent(session, message_id, proponent_discord_id):
     strike_proponent.user = user
     strike.proponents.append(strike_proponent)
     return strike
-    
-def mark_strike_operation_successful(session, message_id, strike_level_modified):
-    strike = session.query(Strike).\
-        options(selectinload('proposing_user'), selectinload('targeted_user')).\
-        filter(Strike.watched_message_id == message_id).\
-        one()
-    strike.strike_level_modified = strike_level_modified
-    strike.success = True
-    strike.succeeded_at = datetime.now()
-    strike.voting_ends_at = strike.succeeded_at
-    return strike
-    
+        
 def create_server(session, discord_server_id):
     __get_or_create_server(session, discord_server_id)
     
@@ -105,7 +98,7 @@ def get_decayed_strikes(session, decay_time):
         filter(Strike.decayed != True).\
         filter(Strike.action == Action.add).\
         filter(Strike.success == True).\
-        filter(datetime.now() - timedelta(hours=decay_time) >= Strike.succeeded_at).\
+        filter(datetime.now() - timedelta(seconds=decay_time) >= Strike.succeeded_at).\
         filter(Strike.strike_level_modified == highest_undecayed_strike_per_user.c.max_active_strike_level).\
         filter(Strike.targeted_user_id == highest_undecayed_strike_per_user.c.targeted_user_id).\
         all()

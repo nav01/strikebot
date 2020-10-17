@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import enum
 
 from .base import Base
@@ -28,7 +28,7 @@ class Strike(Base):
     watched_message_channel_id = Column(Integer)
     watched_message_jump_url = Column(String(150))
     success = Column(Boolean, default=False, nullable=False)
-    proposed_at = Column(DateTime, default=datetime.datetime.now, nullable=False)
+    proposed_at = Column(DateTime, default=datetime.now, nullable=False)
     voting_ends_at = Column(DateTime)
     succeeded_at = Column(DateTime)
     
@@ -39,3 +39,9 @@ class Strike(Base):
     
     def decay(self):
         self.decayed = True
+        
+    def mark_success(self, strike_level_modified):
+        self.strike_level_modified = strike_level_modified
+        self.success = True
+        self.succeeded_at = datetime.now()
+        self.voting_ends_at = self.succeeded_at
